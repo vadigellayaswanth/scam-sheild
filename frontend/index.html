@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Scam Shield - Multilingual AI-powered cyber scam protection tool to inspect suspicious messages impersonating Amazon.">
+  <title>Scam Shield &bull; Think Before You Trust</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Global Security Header -->
+  <header class="site-header" role="banner">
+    <div class="header-inner">
+      <div class="brand-wrapper">
+        <div class="logo-shield" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(255, 153, 0, 0.15)" stroke="#ff9900"/>
+            <path d="M9 12l2 2 4-4" stroke="#ffffff" stroke-width="2.5"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Scam<span class="brand-name-highlight">Shield</span></span>
+          <span class="brand-subtitle">AI-Powered Scam Protection</span>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <!-- Live System Engine Status -->
+        <div id="system-status-pill" class="status-pill" title="Status of analysis engine">
+          <span class="status-dot"></span>
+          <span id="system-status-text">Ready</span>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="lang-selector-group">
+          <label for="language-select" class="visually-hidden" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">Select Language</label>
+          <div class="lang-select-wrapper">
+            <select id="language-select" class="lang-select" aria-label="Select interface language">
+              <option value="en" selected>English</option>
+              <option value="hi">हिंदी (Hindi)</option>
+              <option value="te">తెలుగు (Telugu)</option>
+            </select>
+            <span class="lang-chevron" aria-hidden="true">▼</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-wrapper" role="main">
+    <!-- Hero Introduction -->
+    <section class="hero-banner">
+      <div class="hero-tag">Defensive Cybersecurity Tool</div>
+      <h1 class="hero-title">Think Before You Trust.</h1>
+      <p class="hero-desc">
+        Received an urgent Amazon alert, prize SMS, or verification link?
+        Check messages here before clicking links, sharing OTPs, or sending money.
+      </p>
+    </section>
+
+    <!-- Main Scanner Interface -->
+    <section class="scanner-card" aria-label="Scam message analyzer">
+      <!-- Quick Test Scenarios -->
+      <div class="quick-tests-container">
+        <div class="quick-tests-header">
+          <span class="quick-tests-label">
+            <span>⚡</span> Quick Test Examples
+          </span>
+          <span style="font-size: 0.76rem; color: var(--text-muted);">Click any sample to evaluate real API response</span>
+        </div>
+        <div class="quick-test-chips" role="group" aria-label="Example suspicious and legitimate messages">
+          <button type="button" class="chip-btn" data-example="kyc">
+            <span>🚨</span> Account Blocked (KYC)
+          </button>
+          <button type="button" class="chip-btn" data-example="otp">
+            <span>🔑</span> Support Asking OTP
+          </button>
+          <button type="button" class="chip-btn" data-example="delivery">
+            <span>📦</span> Delivery Fee Link
+          </button>
+          <button type="button" class="chip-btn" data-example="prize">
+            <span>🎁</span> Free iPhone Prize
+          </button>
+          <button type="button" class="chip-btn chip-legit" data-example="legit">
+            <span>✅</span> Legitimate Delivery Update
+          </button>
+        </div>
+      </div>
+
+      <!-- Analysis Form -->
+      <form id="scam-form" onsubmit="return false;">
+        <div class="input-header-row">
+          <label for="message-input" class="input-label">
+            Paste suspicious SMS, WhatsApp message, email, or message text:
+          </label>
+          <span id="char-counter" class="char-counter" aria-live="polite">0 characters</span>
+        </div>
+
+        <div class="textarea-wrapper">
+          <textarea
+            id="message-input"
+            class="scanner-textarea"
+            rows="5"
+            placeholder="Example: Amazon: Your account will be locked in 2 hours due to uncompleted KYC. Update immediately at http://amz-kyc-verify.in or call 9876543210..."
+            aria-label="Message text to analyze"
+            required
+          ></textarea>
+        </div>
+
+        <!-- Action Controls & Privacy Note -->
+        <div class="action-row">
+          <div class="btn-group">
+            <button type="submit" id="check-btn" class="btn btn-primary">
+              <span class="btn-icon" aria-hidden="true">🛡️</span> Analyze Message
+            </button>
+            <button type="button" id="reset-btn" class="btn btn-secondary">
+              <span class="btn-icon" aria-hidden="true">↺</span> Clear
+            </button>
+          </div>
+
+          <div class="privacy-badge" title="Data privacy guarantee">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Evaluated locally on your backend server. No personal records stored.</span>
+          </div>
+        </div>
+      </form>
+
+      <!-- Loading State Feedback -->
+      <div id="loading-state" class="state-box loading-box hidden" role="status" aria-live="polite">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-title">Analyzing message for impersonation signals...</div>
+        <div class="loading-subtext">Executing multi-pattern deterministic detection and Gemini AI reasoning</div>
+      </div>
+
+      <!-- Error Box -->
+      <div id="error-box" class="alert-box alert-error hidden" role="alert">
+        <div class="alert-icon-wrapper" aria-hidden="true">⚠️</div>
+        <div>
+          <h3 id="error-title" class="alert-heading">Analysis Request Failed</h3>
+          <p id="error-message" class="alert-msg"></p>
+        </div>
+      </div>
+
+      <!-- Results Display Section -->
+      <section id="results-section" class="results-section hidden" aria-live="polite">
+        <!-- Overview Score Grid -->
+        <div class="score-overview-grid">
+          <!-- Dial / Score Card -->
+          <div class="score-card" id="score-card">
+            <span class="score-meta-label">Overall Risk Score</span>
+            <div class="score-display-row">
+              <span id="score-number" class="score-big-num">0</span>
+              <span class="score-scale">/ 100</span>
+            </div>
+            <div class="score-progress-track">
+              <div id="score-bar-fill" class="score-progress-bar"></div>
+            </div>
+          </div>
+
+          <!-- Assessment Summary -->
+          <div class="verdict-details-column">
+            <div class="verdict-header-row">
+              <div class="badge-group">
+                <span id="verdict-badge" class="verdict-pill verdict-low">
+                  <span id="verdict-icon" aria-hidden="true">🛡️</span>
+                  <span id="verdict-text">LOW RISK</span>
+                </span>
+                <span id="analysis-mode-badge" class="mode-badge mode-badge-rule">
+                  <span id="mode-icon">🛡️</span> <span id="mode-text">Rule-Based Shield</span>
+                </span>
+              </div>
+            </div>
+
+            <p id="localized-verdict" class="localized-verdict-banner"></p>
+
+            <div class="category-tag-box">
+              <span class="category-label">Detected Category:</span>
+              <span id="category-text" class="category-value">No Scam Detected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Insights & Explanation Block -->
+        <div id="ai-explanation-block" class="ai-insight-panel hidden">
+          <div class="ai-panel-header">
+            <div class="ai-panel-title">
+              <span aria-hidden="true">⚡</span>
+              <span>Gemini AI Safety Context</span>
+            </div>
+            <span class="ai-powered-by">Google Gemini</span>
+          </div>
+          <p id="ai-explanation-text" class="ai-panel-body"></p>
+        </div>
+
+        <!-- Critical Threat Warning -->
+        <div id="high-risk-banner" class="warning-banner hidden" role="alert">
+          <div class="warning-icon" aria-hidden="true">🚨</div>
+          <div>
+            <h3 class="warning-title">Immediate Caution Advised</h3>
+            <p class="warning-text">
+              This message contains prominent markers commonly found in dangerous fraud campaigns.
+              Never share OTPs, never download remote-access apps (AnyDesk, TeamViewer), and do not transfer money.
+            </p>
+          </div>
+        </div>
+
+        <!-- Red Flags & Safe Actions Two-Column Grid -->
+        <div class="report-columns-grid">
+          <!-- Red Flags -->
+          <div class="report-card">
+            <div class="report-header">
+              <span aria-hidden="true">🚩</span>
+              <h3 class="report-title">Red Flags Detected</h3>
+              <span id="red-flags-count" class="count-badge count-badge-danger">0</span>
+            </div>
+            <ul id="red-flags-list" class="report-list flags-list"></ul>
+          </div>
+
+          <!-- Safe Actions -->
+          <div class="report-card">
+            <div class="report-header">
+              <span aria-hidden="true">🛡️</span>
+              <h3 class="report-title">Recommended Safe Actions</h3>
+              <span id="safe-actions-count" class="count-badge count-badge-safe">3</span>
+            </div>
+            <ul id="safe-actions-list" class="report-list actions-list"></ul>
+          </div>
+        </div>
+
+        <!-- Localized Safety Guidance Block -->
+        <div id="safety-advice-block" class="localized-advice-card hidden">
+          <span class="advice-icon" aria-hidden="true">💡</span>
+          <p id="localized-safety-advice" class="advice-text"></p>
+        </div>
+      </section>
+
+      <!-- Recent Scans in Session (Optional local history) -->
+      <section id="history-section" class="history-section hidden" aria-label="Session scan history">
+        <div class="history-header">
+          <h3 class="history-title">
+            <span aria-hidden="true">🕒</span> Recent Scans in Current Session
+          </h3>
+          <button type="button" id="clear-history-btn" class="history-clear-btn">Clear History</button>
+        </div>
+        <div id="history-list" class="history-list"></div>
+      </section>
+    </section>
+
+    <!-- Trust, Safety & Ethics Advisory -->
+    <aside class="advisory-card" aria-label="Important safety disclaimer">
+      <div class="advisory-icon" aria-hidden="true">ℹ️</div>
+      <div class="advisory-content">
+        <h4>Trust & Safety Notice</h4>
+        <p>
+          Scam Shield is a defensive advisory instrument designed to highlight social engineering patterns.
+          A low score indicates no recognized scam patterns were found, but does <strong>not guarantee</strong> a message is authentic.
+          Amazon never asks for OTPs, CVVs, or remote app installations. Always inspect your order status directly inside the official Amazon app or on
+          <a href="https://www.amazon.in" target="_blank" rel="noopener noreferrer">amazon.in</a>.
+        </p>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="footer-content">
+      <p class="footer-brand">Scam Shield &bull; Amazon Impersonation Defense Initiative</p>
+      <p class="footer-disclaimer">
+        Built for cybersecurity protection across English, Hindi, and Telugu.
+        Combines deterministic rule engine with Google Gemini AI.
+      </p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
