@@ -192,7 +192,10 @@ def analyze_scam_message(
 def run_server(host: str = "127.0.0.1", port: int = 8001, path: str = "/mcp"):
     """
     Starts the Scam Shield MCP server using Streamable HTTP transport.
-    Endpoint will be available at http://{host}:{port}{path} (default: http://127.0.0.1:8001/mcp).
+    Endpoint: http://{host}:{port}{path}
+
+    Cloud deployment: set MCP_HOST=0.0.0.0 and PORT=<assigned-port> in env vars.
+    Local development: defaults to http://127.0.0.1:8001/mcp (no env vars needed).
     """
     print(f"Starting Scam Shield MCP Server (Streamable HTTP) on http://{host}:{port}{path}")
     mcp_server.run(
@@ -204,10 +207,13 @@ def run_server(host: str = "127.0.0.1", port: int = 8001, path: str = "/mcp"):
 
 
 if __name__ == "__main__":
-    host = "127.0.0.1"
-    port = 8001
-    path = "/mcp"
+    # Cloud platforms (Cloud Run, Railway, Render) set PORT and expect 0.0.0.0.
+    # Local dev uses 127.0.0.1:8001 by default — no env vars needed.
+    host = os.environ.get("MCP_HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", os.environ.get("MCP_PORT", "8001")))
+    path = os.environ.get("MCP_PATH", "/mcp")
 
+    # Legacy: positional CLI arg still overrides PORT env var for local convenience.
     if len(sys.argv) > 1 and sys.argv[1].isdigit():
         port = int(sys.argv[1])
 

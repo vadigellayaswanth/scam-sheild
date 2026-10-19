@@ -257,7 +257,7 @@
     <aside class="advisory-card" aria-label="Important safety disclaimer">
       <div class="advisory-icon" aria-hidden="true">ℹ️</div>
       <div class="advisory-content">
-        <h4>Trust & Safety Notice</h4>
+        <h4>Trust &amp; Safety Notice</h4>
         <p>
           Scam Shield is a defensive advisory instrument designed to highlight social engineering patterns.
           A low score indicates no recognized scam patterns were found, but does <strong>not guarantee</strong> a message is authentic.
@@ -266,6 +266,274 @@
         </p>
       </div>
     </aside>
+
+    <!-- ═══════════════════════════════════════════════════
+         ALEXA+ SIMULATED DEMO SECTION
+         Calls the real /analyze FastAPI endpoint.
+         Clearly labelled as a SIMULATION — not an official Alexa+ connection.
+    ════════════════════════════════════════════════════ -->
+    <section class="alexa-demo-section" aria-label="Simulated Alexa+ scam protection demo" id="alexa-demo">
+      <div class="alexa-demo-header">
+        <div class="alexa-logo-row">
+          <!-- Alexa ring icon (pure CSS) -->
+          <div class="alexa-ring" aria-hidden="true"></div>
+          <div>
+            <h2 class="alexa-demo-title">Try the Alexa+ Scam Protection Demo</h2>
+            <p class="alexa-demo-subtitle">
+              Simulates how Alexa+ would call the <code>analyze_scam_message</code> MCP tool on your behalf.<br>
+              <span class="sim-badge">⚠️ Simulation only — not connected to an official Alexa+ service.</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preset examples -->
+      <div class="alexa-chips" role="group" aria-label="Choose an example message">
+        <button type="button" class="alexa-chip" data-msg="Amazon: Your account will be blocked in 2 hours due to pending KYC. Update immediately at http://amz-kyc-in.com or call 9876543210.">🚨 Account Blocked</button>
+        <button type="button" class="alexa-chip" data-msg="Your Amazon order #408-8822914 for iPhone 14 has won a Lucky Draw prize of ₹50,000! Claim within 24h at bit.ly/amz-prize">🎁 Prize Scam</button>
+        <button type="button" class="alexa-chip" data-msg="Hi, I'm from Amazon customer support. Your account shows an unauthorized order. Please share the OTP you just received to cancel it.">🔑 OTP Request</button>
+        <button type="button" class="alexa-chip" data-msg="Your Amazon package will be delivered tomorrow between 10am-1pm. No action needed.">✅ Legit Message</button>
+      </div>
+
+      <!-- Input + submit -->
+      <div class="alexa-input-row">
+        <textarea id="alexa-input" class="alexa-textarea" rows="3"
+          placeholder="Type or paste a suspicious message, or click an example above…"
+          aria-label="Message to ask Alexa+ about"></textarea>
+        <button type="button" id="alexa-ask-btn" class="alexa-ask-btn">
+          <span class="alexa-ring-sm" aria-hidden="true"></span>
+          Ask Alexa+
+        </button>
+      </div>
+
+      <!-- Conversation thread -->
+      <div id="alexa-conversation" class="alexa-conversation" aria-live="polite" aria-label="Alexa+ conversation"></div>
+    </section>
+
+    <style>
+    /* ── Alexa+ Demo Section Styles ── */
+    .alexa-demo-section {
+      max-width: 860px;
+      margin: 2rem auto 0;
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 2rem 2rem 1.5rem;
+      box-shadow: 0 4px 24px rgba(11,21,45,0.07);
+    }
+    .alexa-demo-header { margin-bottom: 1.25rem; }
+    .alexa-logo-row { display: flex; align-items: flex-start; gap: 1rem; }
+    .alexa-ring {
+      flex-shrink: 0;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      background: conic-gradient(#00caff 0deg, #0070cc 90deg, #002d72 180deg, #00caff 360deg);
+      box-shadow: 0 0 0 3px #e0f4ff, 0 0 16px 2px #00caff44;
+      animation: alexa-pulse 3s ease-in-out infinite;
+    }
+    @keyframes alexa-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px #e0f4ff, 0 0 10px 1px #00caff44; }
+      50% { box-shadow: 0 0 0 5px #c8eeff, 0 0 22px 4px #00caff66; }
+    }
+    .alexa-demo-title { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin: 0 0 0.3rem; }
+    .alexa-demo-subtitle { font-size: 0.88rem; color: #475569; margin: 0; line-height: 1.55; }
+    .alexa-demo-subtitle code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 0.83rem; color: #6d28d9; }
+    .sim-badge { display: inline-block; margin-top: 0.35rem; background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 600; }
+    .alexa-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+    .alexa-chip {
+      background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 999px;
+      padding: 0.4rem 1rem; font-size: 0.83rem; font-weight: 500; cursor: pointer;
+      color: #334155; transition: background 0.15s, border-color 0.15s;
+    }
+    .alexa-chip:hover { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+    .alexa-input-row { display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 1.25rem; }
+    .alexa-textarea {
+      flex: 1; border: 1.5px solid #e2e8f0; border-radius: 10px;
+      padding: 0.75rem 1rem; font-size: 0.92rem; font-family: inherit;
+      color: #0f172a; resize: vertical; transition: border-color 0.15s;
+      background: #f8fafc;
+    }
+    .alexa-textarea:focus { outline: none; border-color: #00caff; }
+    .alexa-ask-btn {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: linear-gradient(135deg, #0070cc 0%, #002d72 100%);
+      color: #fff; border: none; border-radius: 10px;
+      padding: 0.7rem 1.4rem; font-size: 0.92rem; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .alexa-ask-btn:hover { opacity: 0.88; }
+    .alexa-ask-btn:active { transform: scale(0.97); }
+    .alexa-ask-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .alexa-ring-sm {
+      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+      background: conic-gradient(#00caff, #fff, #00caff);
+      animation: spin 1.2s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .alexa-conversation { display: flex; flex-direction: column; gap: 0.9rem; }
+    .alexa-bubble-wrap { display: flex; gap: 0.65rem; align-items: flex-start; }
+    .alexa-bubble-wrap.user-bubble { flex-direction: row-reverse; }
+    .bubble-avatar {
+      flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 700;
+    }
+    .alexa-avatar { background: conic-gradient(#00caff 0deg, #0070cc 180deg, #00caff 360deg); color: #fff; font-size: 0.75rem; }
+    .user-avatar { background: #ff9900; color: #fff; font-size: 0.85rem; }
+    .bubble {
+      max-width: 78%; background: #f1f5f9; border-radius: 12px 12px 12px 2px;
+      padding: 0.7rem 1rem; font-size: 0.88rem; color: #1e293b; line-height: 1.55;
+    }
+    .alexa-bubble-wrap.user-bubble .bubble { background: #0070cc; color: #fff; border-radius: 12px 12px 2px 12px; }
+    .alexa-result-card {
+      background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px;
+      padding: 0.9rem 1rem; margin-top: 0.3rem;
+    }
+    .alexa-result-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .alexa-score-pill {
+      font-weight: 700; font-size: 1.05rem; padding: 2px 12px;
+      border-radius: 999px; background: #fef3c7; color: #92400e;
+    }
+    .alexa-score-pill.critical { background: #fee2e2; color: #991b1b; }
+    .alexa-score-pill.high { background: #fee2e2; color: #b91c1c; }
+    .alexa-score-pill.medium { background: #fef3c7; color: #b45309; }
+    .alexa-score-pill.low { background: #dcfce7; color: #15803d; }
+    .alexa-mode-tag { font-size: 0.75rem; background: #ede9fe; color: #6d28d9; border-radius: 6px; padding: 2px 7px; font-weight: 600; }
+    .alexa-flags-list, .alexa-actions-list { padding-left: 1.1rem; margin: 0.3rem 0 0; font-size: 0.83rem; }
+    .alexa-flags-list li { color: #b91c1c; margin-bottom: 2px; }
+    .alexa-actions-list li { color: #15803d; margin-bottom: 2px; }
+    .alexa-endpoint-note { font-size: 0.76rem; color: #94a3b8; margin-top: 0.5rem; }
+    .alexa-endpoint-note code { background: #f1f5f9; padding: 0 4px; border-radius: 4px; font-size: 0.73rem; }
+    .alexa-thinking { font-style: italic; color: #64748b; font-size: 0.85rem; }
+    @media (max-width: 600px) {
+      .alexa-input-row { flex-direction: column; }
+      .alexa-ask-btn { width: 100%; justify-content: center; }
+      .alexa-demo-section { padding: 1.25rem 1rem 1rem; }
+    }
+    </style>
+
+    <script>
+    /* ── Alexa+ Demo Logic ── */
+    (function () {
+      const API_BASE = "http://127.0.0.1:8000";
+      const input   = document.getElementById("alexa-input");
+      const askBtn  = document.getElementById("alexa-ask-btn");
+      const thread  = document.getElementById("alexa-conversation");
+      const chips   = document.querySelectorAll(".alexa-chip");
+
+      chips.forEach(chip => {
+        chip.addEventListener("click", () => {
+          input.value = chip.dataset.msg;
+          input.focus();
+        });
+      });
+
+      function appendBubble(role, html) {
+        const wrap = document.createElement("div");
+        wrap.className = "alexa-bubble-wrap" + (role === "user" ? " user-bubble" : "");
+
+        const avatar = document.createElement("div");
+        avatar.className = "bubble-avatar " + (role === "user" ? "user-avatar" : "alexa-avatar");
+        avatar.textContent = role === "user" ? "You" : "A+";
+
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.innerHTML = html;
+
+        wrap.appendChild(avatar);
+        wrap.appendChild(bubble);
+        thread.appendChild(wrap);
+        thread.scrollTop = thread.scrollHeight;
+        return bubble;
+      }
+
+      function verdictClass(v) {
+        return ["critical","high","medium","low"].includes(v) ? v : "medium";
+      }
+
+      function buildResultCard(data) {
+        const vc  = verdictClass(data.verdict);
+        const flags = (data.red_flags || []).slice(0, 5)
+          .map(f => `<li>${escHtml(f)}</li>`).join("");
+        const actions = (data.safe_actions || []).slice(0, 4)
+          .map(a => `<li>${escHtml(a)}</li>`).join("");
+        const lang = document.getElementById("language-select")
+          ? document.getElementById("language-select").value : "en";
+
+        return `
+          <div class="alexa-result-card">
+            <div class="alexa-result-row">
+              <span class="alexa-score-pill ${vc}">
+                Risk ${data.risk_score}/100 — ${data.verdict.toUpperCase()}
+              </span>
+              <span class="alexa-mode-tag">${data.analysis_mode === "ai_enhanced" ? "⚡ AI Enhanced" : "🛡️ Rule-Based"}</span>
+            </div>
+            <strong style="font-size:0.83rem;color:#334155;">Category:</strong>
+            <span style="font-size:0.83rem;color:#475569;"> ${escHtml(data.category)}</span>
+            ${flags ? `<ul class="alexa-flags-list">${flags}</ul>` : ""}
+            ${actions ? `<ul class="alexa-actions-list">${actions}</ul>` : ""}
+            ${data.ai_explanation ? `<p style="font-size:0.82rem;color:#475569;margin-top:0.4rem;font-style:italic;">${escHtml(data.ai_explanation)}</p>` : ""}
+            <p class="alexa-endpoint-note">Real API call → <code>POST ${API_BASE}/analyze</code> (lang: ${escHtml(lang)})</p>
+          </div>`;
+      }
+
+      function escHtml(str) {
+        return String(str)
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+          .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+      }
+
+      async function runDemo() {
+        const msg = input.value.trim();
+        if (!msg) { input.focus(); return; }
+
+        askBtn.disabled = true;
+        const lang = document.getElementById("language-select")
+          ? document.getElementById("language-select").value : "en";
+
+        // User bubble
+        appendBubble("user", escHtml(msg));
+
+        // Alexa thinking
+        const thinkBubble = appendBubble("alexa", '<span class="alexa-thinking">Calling analyze_scam_message tool…</span>');
+
+        try {
+          const resp = await fetch(`${API_BASE}/analyze`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: msg, language: lang }),
+          });
+
+          if (!resp.ok) throw new Error(`API error ${resp.status}`);
+          const data = await resp.json();
+
+          const vc = verdictClass(data.verdict);
+          const intro = {
+            critical: "⚠️ <strong>Warning:</strong> This message is highly dangerous.",
+            high:     "🚨 <strong>Alert:</strong> This message shows serious scam signals.",
+            medium:   "⚠️ <strong>Caution:</strong> This message has suspicious patterns.",
+            low:      "✅ <strong>Looks safe:</strong> No major scam indicators detected.",
+          }[vc] || "Here's what I found:";
+
+          thinkBubble.innerHTML = `${intro}${buildResultCard(data)}`;
+        } catch (err) {
+          thinkBubble.innerHTML = `
+            <span style="color:#b91c1c;">⚠️ Could not reach the backend API.<br>
+            Make sure the FastAPI server is running on <code>${API_BASE}</code>.</span>`;
+        } finally {
+          askBtn.disabled = false;
+        }
+      }
+
+      askBtn.addEventListener("click", runDemo);
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) runDemo();
+      });
+    })();
+    </script>
+
+
   </main>
 
   <!-- Site Footer -->

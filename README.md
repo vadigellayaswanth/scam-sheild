@@ -204,6 +204,8 @@ python app/mcp_server.py 8001
 
 ---
 
+---
+
 ## 🧪 Running Automated Tests
 
 Run the full automated test suite (including detector, translations, API schemas, and MCP tool mocks):
@@ -211,6 +213,74 @@ Run the full automated test suite (including detector, translations, API schemas
 python -m unittest discover -s tests
 ```
 *Expected Result: 21 tests passed (0 failures, 0 errors, no real API calls executed during tests).*
+
+---
+
+## 🗣️ Alexa+ Scam Protection Demo
+
+The frontend includes a **"Try the Alexa+ Scam Protection Demo"** section that simulates how Alexa+ would call the `analyze_scam_message` MCP tool.
+
+> **This is a simulation only — it is not connected to an official Alexa+ service.**
+
+### How to Use
+
+1. Ensure the FastAPI backend is running on `http://127.0.0.1:8000`
+2. Open the frontend at `http://127.0.0.1:5500`
+3. Scroll to the **"Try the Alexa+ Scam Protection Demo"** section at the bottom
+4. Click a preset chip (e.g. "🚨 Account Blocked") or type your own suspicious message
+5. Click **Ask Alexa+** (or press `Ctrl+Enter`)
+6. The demo calls `POST /analyze` on the real backend and displays results in a conversational card:
+   - Risk score and verdict (CRITICAL / HIGH / MEDIUM / LOW)
+   - Detected scam category
+   - Red flags found
+   - Recommended safe actions
+   - Analysis mode (AI Enhanced or Rule-Based)
+7. The exact endpoint called is shown transparently at the bottom of each response
+
+---
+
+## ☁️ Cloud Deployment (MCP Server)
+
+> **Status: NOT YET DEPLOYED.** The MCP server runs locally. Deploy before hackathon submission.
+
+The MCP server reads its bind address and port from environment variables, making it cloud-ready without code changes:
+
+| Variable | Default (local) | Cloud value |
+|---|---|---|
+| `MCP_HOST` | `127.0.0.1` | `0.0.0.0` |
+| `PORT` | `8001` | Assigned by platform |
+| `MCP_PATH` | `/mcp` | `/mcp` |
+| `GEMINI_API_KEY` | (from `.env`) | Set as secret env var |
+
+### Deploying to Google Cloud Run
+
+```bash
+# 1. Build and push container
+gcloud run deploy scam-shield-mcp \
+  --source . \
+  --command "python" \
+  --args "app/mcp_server.py" \
+  --set-env-vars "MCP_HOST=0.0.0.0,GEMINI_API_KEY=YOUR_KEY" \
+  --region us-central1 \
+  --allow-unauthenticated
+
+# 2. Your MCP endpoint will be:
+# https://scam-shield-mcp-XXXX.run.app/mcp
+```
+
+### Deploying to Railway or Render
+
+```bash
+# Set these environment variables in the platform dashboard:
+MCP_HOST=0.0.0.0
+PORT=<platform-assigned>
+GEMINI_API_KEY=<your-key>
+
+# Start command:
+python app/mcp_server.py
+```
+
+After deployment, update the Alexa+ demo `API_BASE` constant in `frontend/index.html` to your public URL.
 
 ---
 
