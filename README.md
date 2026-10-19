@@ -108,7 +108,7 @@ Many everyday users cannot distinguish genuine Amazon communications from fraudu
 
 ### 2. Clone or Navigate to Project
 ```powershell
-cd c:\Users\vyasw\OneDrive\Desktop\scam-sheild
+cd scam-sheild
 ```
 
 ### 3. Set Up Python Virtual Environment
