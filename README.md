@@ -214,6 +214,12 @@ python -m unittest discover -s tests
 
 ---
 
-## 📄 License & Hackathon Notice
+## ## 📄 License & Hackathon Notice
 
-This project is created for the Amazon Developer Hackathon. Open-source licensing will be applied prior to public distribution.
+Scam Shield is developed for the Amazon Developer Hackathon.
+
+This project is licensed under the MIT License.
+See the [LICENSE](LICENSE) file for details.
+
+Scam Shield is an independent project and is not affiliated with,
+endorsed by, or officially associated with Amazon.
