@@ -27,19 +27,26 @@ Many everyday users cannot distinguish genuine Amazon communications from fraudu
 
 ## ✨ Features
 
+- **Interactive AI Voice Assistant**:
+  - *Natural Voice Input*: Hands-free microphone button using browser Speech Recognition with real-time text transcription, listening indicators, and graceful permission handling.
+  - *Natural Spoken Responses*: Built-in browser Text-to-Speech speaking assistant verdicts aloud in English, Hindi (`hi-IN`), and Telugu (`te-IN`), with audio mute/unmute and instant stop controls.
+  - *Empathetic Conversational Companion*: Warmly greets users, answers everyday questions, responds empathetically to boredom/sadness, and explains cyber safety in plain language without pretending to be human.
+  - *Context Memory*: Retains session dialogue context across turns.
+- **Automatic Scam Link Detection & SSRF Shield**:
+  - *Zero-Click Inspection*: Automatically extracts and analyzes all URLs submitted via voice or text.
+  - *SSRF Defense*: Validates resolved IP addresses before connecting; strictly blocks `127.0.0.1`, private RFC 1918 networks, link-local metadata (`169.254.169.254`), and non-HTTP/HTTPS protocols.
+  - *Hop-by-Hop Redirect Verification*: Inspects every redirect destination's IP before following; aborts unsafe hops.
+  - *Lookalike & Typosquatting Detection*: Detects deceptive domain imitations (`amaz0n`, `amzn-security`, `amazon-kyc`, misleading subdomains, and URL shorteners).
+  - *Safe Availability Probing*: Probes link reachability safely without downloading full webpages or executing scripts.
 - **Multilingual Support**: Tailored detection and localized guidance in **English**, **Hindi (हिंदी)**, and **Telugu (తెలుగు)**.
 - **Dual-Engine Security Pipeline**:
   - *Deterministic Rule Engine*: Immediate pattern detection for shortened URLs, KYC extortion, OTP solicitation, UPI collect requests, and remote-access APKs.
   - *Google Gemini AI Enhancement*: Deep contextual evaluation of social engineering, tone, novel tactics, and linguistic nuances.
   - *Risk Score Floor Protection*: AI cannot override or lower a high deterministic rule score, ensuring prompt injection cannot bypass security rules.
-- **Model Context Protocol (MCP) Server**: Full Streamable HTTP MCP server exposing the `analyze_scam_message` tool for autonomous agents and LLMs.
+- **Model Context Protocol (MCP) Server**: Full Streamable HTTP MCP server exposing both `analyze_scam_message` and `analyze_scam_url` tools for autonomous agents and LLMs.
 - **Safe Fallback & Privacy-Preserving Architecture**:
-  - Graceful degradation: if Gemini AI is unreachable or unconfigured, the app falls back seamlessly to deterministic rule protection.
-  - Messages are evaluated locally on your server without storing personally identifiable information (PII).
-- **Accessible, Modern UI**:
-  - Amazon-inspired warm amber (`#ff9900`) and cyber-navy aesthetic.
-  - Interactive quick-test samples for immediate evaluation.
-  - Dynamic character counter and real-time backend health check status pill.
+  - Graceful degradation: if Gemini AI is rate-limited or unconfigured, the assistant falls back seamlessly to deterministic rule protection.
+  - Messages and links are evaluated locally on your server without storing personally identifiable information (PII).
 
 ---
 
@@ -47,55 +54,59 @@ Many everyday users cannot distinguish genuine Amazon communications from fraudu
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | Vanilla HTML5, CSS3 (Modern Design System, Responsive Flexbox/Grid), JavaScript (ES6+, Text-only XSS-safe DOM rendering) |
-| **Backend API** | FastAPI, Pydantic v2, Uvicorn, Python-dotenv |
+| **Voice & Speech** | Web Speech API (SpeechRecognition for STT, SpeechSynthesis for TTS), Multi-accent voices (en-IN, hi-IN, te-IN) |
+| **Frontend** | Vanilla HTML5, CSS3 (Modern Responsive Design System), JavaScript (ES6+, Text-only XSS-safe DOM rendering) |
+| **Backend API** | FastAPI, Pydantic v2, Uvicorn, Python-dotenv, HTTPX (SSRF-guarded link inspector) |
 | **AI Integration** | Google GenAI SDK (`google-genai`), Gemini 2.5 Flash |
-| **Agent / Protocol** | Model Context Protocol (`mcp[cli] 2.3+`), Streamable HTTP Transport |
-| **Testing** | Python `unittest`, `httpx`, `fastapi.testclient` |
+| **Agent / Protocol** | Model Context Protocol (`mcp[cli] 2.3+`), Streamable HTTP Transport (`analyze_scam_message`, `analyze_scam_url`) |
+| **Testing** | Python `unittest`, `httpx`, `fastapi.testclient` (65 automated tests) |
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-[ Incoming Message (SMS / WhatsApp / Email) ]
+[ Incoming Message / Voice Speech / Suspicious Link ]
                      │
          ┌───────────┴───────────┐
          ▼                       ▼
   [ Web Browser UI ]     [ MCP Client / Agent ]
-  (Port 5500)             (Port 8001 /mcp)
+  - Web Speech STT/TTS    (Port 8001 /mcp)
+  (Port 5500)                    │
          │                       │
          ▼                       ▼
 ┌───────────────────┐   ┌───────────────────────────┐
 │   FastAPI Engine  │   │  Scam Shield MCP Server   │
 │   (Port 8000)     │   │  (Streamable HTTP)        │
+│   /chat & /analyze│   │  analyze_scam_message     │
+│   /analyze-url    │   │  analyze_scam_url         │
 └─────────┬─────────┘   └─────────────┬─────────────┘
           │                           │
-          └─────────────┬─────────────┘
-                        │
-                        ▼
-      ┌───────────────────────────────────┐
-      │ Deterministic Rule Detector       │
-      │ - Keyword & transliteration match │
-      │ - URL & remote-access analysis    │
-      │ - Risk score baseline (0-100)     │
-      └─────────────────┬─────────────────┘
-                        │
-                        ▼
-      ┌───────────────────────────────────┐
-      │ Google Gemini AI Analyzer         │
-      │ (google-genai / gemini-2.5-flash) │
-      │ - Contextual phishing inspection  │
-      │ - XML-isolated prompt safety      │
-      └─────────────────┬─────────────────┘
-                        │
-                        ▼
-      ┌───────────────────────────────────┐
-      │ Scored Verdict & Guidance         │
-      │ - Final Score = max(Rule, AI)     │
-      │ - Red Flags & Safe Actions        │
-      │ - Localized Translations (hi/te)  │
-      └───────────────────────────────────┘
+          ├───────────────────────────┤
+          ▼                           ▼
+┌───────────────────┐       ┌───────────────────────┐
+│ URL & SSRF Engine │       │ Deterministic Rules   │
+│ - IP & DNS check  │       │ - Keyword detection   │
+│ - SSRF blocklist  │       │ - OTP / KYC / Remote  │
+│ - Lookalike brand │       │ - Baseline risk score │
+└─────────┬─────────┘       └───────────┬───────────┘
+          │                             │
+          └──────────────┬──────────────┘
+                         ▼
+        ┌───────────────────────────────────┐
+        │ Google Gemini AI Assistant        │
+        │ (google-genai / gemini-2.5-flash) │
+        │ - Contextual phishing reasoning   │
+        │ - Empathetic conversational chat  │
+        │ - Spoken TTS synthesis generator  │
+        └─────────────────┬─────────────────┘
+                          ▼
+        ┌───────────────────────────────────┐
+        │ Scored Verdict & Guidance         │
+        │ - Final Risk Score (0-100)        │
+        │ - Structured Link Report Cards    │
+        │ - Localized Translations (hi/te)  │
+        └───────────────────────────────────┘
 ```
 
 ---
@@ -208,35 +219,43 @@ python app/mcp_server.py 8001
 
 ## 🧪 Running Automated Tests
 
-Run the full automated test suite (including detector, translations, API schemas, and MCP tool mocks):
+Run the full automated test suite (including detector, translations, API schemas, URL analyzer, SSRF defense, voice assistant, and MCP tool mocks):
 ```powershell
 python -m unittest discover -s tests
 ```
-*Expected Result: 21 tests passed (0 failures, 0 errors, no real API calls executed during tests).*
+*Expected Result: 65 tests passed (0 failures, 0 errors, full coverage across rule engine, URL analyzer, SSRF blockers, obfuscated IP parsing, DNS rebinding mitigation, and voice assistant).*
 
 ---
 
-## 🗣️ Alexa+ Scam Protection Demo
+## 🗣️ Interactive AI Voice Assistant & Link Inspector
 
-The frontend includes a **"Try the Alexa+ Scam Protection Demo"** section that simulates how Alexa+ would call the `analyze_scam_message` MCP tool.
+The frontend includes an interactive **Scam Shield AI Voice Assistant** that behaves like a friendly conversational companion and automatically detects suspicious links.
 
-> **This is a simulation only — it is not connected to an official Alexa+ service.**
+> **Note:** This is a simulated Alexa+-style companion and is not officially connected to Amazon's Alexa+ service.
 
-### How to Use
+### How to Use Voice & Chat Features
 
-1. Ensure the FastAPI backend is running on `http://127.0.0.1:8000`
-2. Open the frontend at `http://127.0.0.1:5500`
-3. Scroll to the **"Try the Alexa+ Scam Protection Demo"** section at the bottom
-4. Click a preset chip (e.g. "🚨 Account Blocked") or type your own suspicious message
-5. Click **Ask Alexa+** (or press `Ctrl+Enter`)
-6. The demo calls `POST /mcp-demo` on the backend bridge, which genuinely executes `session.call_tool("analyze_scam_message")` over Streamable HTTP against the MCP server on port 8001 via the official Python MCP SDK:
-   - Risk score and verdict (CRITICAL / HIGH / MEDIUM / LOW)
-   - Detected scam category
-   - Red flags found
-   - Recommended safe actions
-   - Analysis mode (AI Enhanced or Rule-Based)
-   - Genuine MCP tool invocation confirmation
-7. The exact endpoint and MCP tool call status are shown transparently at the bottom of each response
+1. Ensure the FastAPI backend is running on `http://127.0.0.1:8000`.
+2. Open the frontend in your browser at `http://127.0.0.1:5500`.
+3. Scroll to the **"Scam Shield AI Voice Assistant"** card.
+4. **Voice Input (Hands-free)**:
+   - Click the circular microphone button (`🎙️`) to begin speaking naturally in English, Hindi, or Telugu.
+   - The listening status indicator will pulse and recognized speech will appear in the input box.
+   - Click the mic button again to stop listening anytime.
+5. **Spoken Output**:
+   - The assistant speaks its responses aloud using natural browser text-to-speech.
+   - Toggle the **🔊 Spoken: On / 🔇 Spoken: Muted** button to mute speech.
+   - Click **⏹️ Stop Audio** to cancel speech playback instantly.
+6. **Automatic Scam Link Detection**:
+   - Whenever you speak or type a message containing a URL (e.g., *"Is this link safe: http://amaz0n-kyc.in?"*), the assistant automatically evaluates the link without needing any extra clicks.
+   - An interactive **Link Security Report Card** will appear with:
+     - Domain and original URL
+     - Live availability status (🟢 Online, 🔴 Unreachable, 🛑 SSRF Blocked)
+     - Risk Score and Verdict (Low, Medium, High, Critical)
+     - Identified red flags (brand impersonation, shorteners, deceptive subdomains)
+     - Actionable protective recommendations
+7. **Conversational Companion**:
+   - Try saying *"Hi"*, *"I'm bored"*, or asking everyday questions—the assistant responds warmly and empathetically in English, Hindi, or Telugu.
 
 ---
 

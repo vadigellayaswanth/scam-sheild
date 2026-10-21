@@ -21,6 +21,8 @@ from mcp.client.streamable_http import streamable_http_client
 from app.detector import analyze_message, SUPPORTED_LANGUAGES
 from app.translations import get_translation
 from app.ai_analyzer import analyze_with_ai
+from app.url_analyzer import analyze_scam_url, extract_urls
+from app.assistant import chat_with_assistant
 
 app = FastAPI(
     title="Scam Shield API",
@@ -270,4 +272,113 @@ async def post_mcp_demo(request: AnalyzeRequest) -> MCPDemoResponse:
         mcp_tool_name="analyze_scam_message",
         mcp_endpoint=mcp_url,
     )
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., description="Message from the user to the Voice Assistant")
+    language: Literal["en", "hi", "te"] = Field(default="en")
+    history: Optional[List[ChatMessage]] = Field(default=None)
+    auto_analyze_links: bool = Field(default=True)
+
+    @field_validator("message")
+    @classmethod
+    def validate_message_not_empty(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("Message cannot be empty or whitespace-only.")
+        return value
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    speech_text: str
+    language: str
+    urls_detected: List[dict]
+    scam_message_analysis: Optional[dict] = None
+    overall_risk_score: int
+    overall_verdict: str
+
+
+class AnalyzeUrlRequest(BaseModel):
+    url: str = Field(..., description="Web link to inspect")
+    check_live: bool = Field(default=True)
+    language: Literal["en", "hi", "te"] = Field(default="en")
+
+    @field_validator("url")
+    @classmethod
+    def validate_url_not_empty(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("URL cannot be empty or whitespace-only.")
+        return value
+
+
+@app.post(
+    "/chat",
+    response_model=ChatResponse,
+    summary="Voice Assistant Conversational Endpoint",
+    description="Conversational endpoint for the voice assistant. Answers general questions, greets warmly, and automatically analyzes URLs and scam signals.",
+    tags=["Voice Assistant"],
+)
+def post_chat(request: ChatRequest) -> ChatResponse:
+    """
+    Chat endpoint for the Scam Shield Voice Assistant.
+    Provides empathetic conversational companion responses, answers questions,
+    and automatically extracts and analyzes any URLs or scam messages.
+    """
+    try:
+        history_dicts = (
+            [{"role": h.role, "content": h.content} for h in request.history]
+            if request.history
+            else None
+        )
+        result = chat_with_assistant(
+            message=request.message,
+            language=request.language,
+            history=history_dicts,
+            auto_analyze_links=request.auto_analyze_links,
+        )
+        return ChatResponse(
+            reply=result["reply"],
+            speech_text=result["speech_text"],
+            language=result["language"],
+            urls_detected=result["urls_detected"],
+            scam_message_analysis=result["scam_message_analysis"],
+            overall_risk_score=result["overall_risk_score"],
+            overall_verdict=result["overall_verdict"],
+        )
+    except Exception as exc:
+        logging.getLogger("scam_shield.chat").error("Chat error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while communicating with the assistant: {str(exc)}",
+        )
+
+
+@app.post(
+    "/analyze-url",
+    summary="Analyze Scam URL",
+    description="Inspect a single URL for lookalikes, shorteners, SSRF safety, and phishing markers.",
+    tags=["URL Analysis"],
+)
+def post_analyze_url(request: AnalyzeUrlRequest) -> dict:
+    """
+    Dedicated endpoint to evaluate a link for scam signals and SSRF safety.
+    """
+    try:
+        return analyze_scam_url(
+            url=request.url,
+            check_live=request.check_live,
+            language=request.language,
+        )
+    except Exception as exc:
+        logging.getLogger("scam_shield.url_analyzer").error("URL analysis error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while evaluating the URL: {str(exc)}",
+        )
+
 

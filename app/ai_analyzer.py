@@ -181,10 +181,24 @@ Provide your assessment strictly as JSON adhering to the specified schema."""
         return validated, None
 
     except Exception as exc:
-        # Gracefully handle timeouts, invalid keys, rate limits, network errors
+        # Gracefully handle timeouts, invalid keys, rate limits, network errors without leaking credentials
         err_type = type(exc).__name__
-        logger.warning("Gemini AI analysis failed gracefully: %s", exc)
-        return None, f"Gemini AI analysis error: {err_type}"
+        err_str = str(exc)
+        code = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+
+        if code == 429 or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower() or "rate-limits" in err_str.lower():
+            diagnostic = "Gemini API quota exhausted (429 RESOURCE_EXHAUSTED). Free-tier limit reached; fallback rule engine active."
+        elif code in (401, 403) or "API_KEY_INVALID" in err_str or "permission" in err_str.lower():
+            diagnostic = "Gemini API authentication failed (invalid or unauthorized API key). Fallback rule engine active."
+        elif "timeout" in err_str.lower() or "timed out" in err_str.lower() or err_type == "TimeoutError":
+            diagnostic = f"Gemini API connection timed out ({err_type}). Fallback rule engine active."
+        elif "network" in err_str.lower() or "connection" in err_str.lower():
+            diagnostic = "Gemini API service temporarily unreachable due to network conditions. Fallback rule engine active."
+        else:
+            diagnostic = f"Gemini AI analysis error ({err_type}). Evaluated using rule-based detector."
+
+        logger.warning("Gemini AI analysis unavailable (%s): %s", err_type, diagnostic)
+        return None, diagnostic
 
 
 def _validate_ai_payload(data: Any) -> Optional[Dict[str, Any]]:

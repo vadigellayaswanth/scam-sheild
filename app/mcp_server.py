@@ -26,6 +26,7 @@ from mcp.server.mcpserver import MCPServer
 from app.detector import analyze_message, SUPPORTED_LANGUAGES
 from app.translations import get_translation
 from app.ai_analyzer import analyze_with_ai
+from app.url_analyzer import analyze_scam_url as run_url_analysis
 
 logger = logging.getLogger("scam_shield.mcp_server")
 
@@ -187,6 +188,68 @@ def analyze_scam_message(
         "ai_explanation": ai_explanation,
         "analysis_mode": analysis_mode,
     }
+
+
+@mcp_server.tool(
+    name="analyze_scam_url",
+    description="Analyze a suspicious web link for Amazon impersonation, phishing, typosquatting, URL shorteners, and SSRF safety across English, Hindi, and Telugu.",
+)
+def analyze_scam_url_mcp(
+    url: str,
+    check_live: bool = True,
+    language: Literal["en", "hi", "te"] = "en",
+) -> Dict[str, Any]:
+    """
+    Evaluates an untrusted URL for fraudulent Amazon impersonation, phishing,
+    typosquatting, shorteners, and SSRF security.
+
+    Parameters
+    ----------
+    url : str
+        The URL or link text to evaluate.
+    check_live : bool, optional
+        Whether to perform SSRF-protected live availability and redirect checks. Defaults to True.
+    language : str, optional
+        Language for safety advice ('en', 'hi', 'te'). Defaults to 'en'.
+
+    Returns
+    -------
+    dict
+        Structured analysis containing risk_score, verdict, category, red_flags, safe_actions, availability, and redirect destination.
+    """
+    if not isinstance(url, str) or not url.strip():
+        return {
+            "error": "Invalid input: 'url' must be a non-empty string.",
+            "url": url,
+            "domain": "",
+            "risk_score": 0,
+            "verdict": "unknown",
+            "category": "Error",
+            "red_flags": ["Empty or invalid URL provided."],
+            "safe_actions": [],
+            "availability": "invalid",
+            "redirect_destination": None,
+            "reputation_checked": False,
+        }
+
+    lang = str(language).lower().strip() if language in SUPPORTED_LANGUAGES else "en"
+    try:
+        return run_url_analysis(url=url.strip(), check_live=bool(check_live), language=lang)
+    except Exception as exc:
+        logger.error("URL analysis tool error: %s", exc)
+        return {
+            "error": f"URL analysis error: {type(exc).__name__}",
+            "url": url,
+            "domain": "",
+            "risk_score": 50,
+            "verdict": "medium",
+            "category": "Analysis Error",
+            "red_flags": [f"Error occurred during evaluation: {str(exc)}"],
+            "safe_actions": ["Treat this unverified link with caution."],
+            "availability": "unknown",
+            "redirect_destination": None,
+            "reputation_checked": False,
+        }
 
 
 def run_server(host: str = "127.0.0.1", port: int = 8001, path: str = "/mcp"):

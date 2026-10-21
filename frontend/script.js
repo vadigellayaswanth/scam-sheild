@@ -431,4 +431,442 @@ document.addEventListener("DOMContentLoaded", () => {
   function hideAllResults() {
     resultsSection.classList.add("hidden");
   }
+
+  /* ══════════════════════════════════════════════════════════
+     Interactive Voice Assistant & Automatic Link Inspection Logic
+     ══════════════════════════════════════════════════════════ */
+  let assistantHistory = [];
+  let isListening = false;
+  let isMuted = false;
+  let recognition = null;
+
+  const voiceRing = document.getElementById("voice-ring");
+  const audioWaveBars = document.getElementById("audio-wave-bars");
+  const voiceMuteBtn = document.getElementById("voice-mute-btn");
+  const voiceMuteIcon = document.getElementById("voice-mute-icon");
+  const voiceMuteLabel = document.getElementById("voice-mute-label");
+  const voiceStopSpeechBtn = document.getElementById("voice-stop-speech-btn");
+  const voiceStatusBanner = document.getElementById("voice-status-banner");
+  const voiceStatusText = document.getElementById("voice-status-text");
+  const thread = document.getElementById("assistant-conversation-thread");
+  const assistantForm = document.getElementById("assistant-input-form");
+  const voiceMicBtn = document.getElementById("voice-mic-btn");
+  const assistantTextInput = document.getElementById("assistant-text-input");
+  const assistantSendBtn = document.getElementById("assistant-send-btn");
+  const clearChatBtn = document.getElementById("clear-chat-btn");
+  const promptChips = document.querySelectorAll(".assistant-prompt-chip");
+
+  // Initialize Speech Recognition
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      isListening = true;
+      voiceMicBtn.classList.add("active");
+      setVoiceRingState("listening");
+      showVoiceStatus("Listening... Speak naturally now");
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = "";
+      let finalTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      const captured = finalTranscript || interimTranscript;
+      if (captured) {
+        assistantTextInput.value = captured;
+      }
+    };
+
+    recognition.onerror = (event) => {
+      isListening = false;
+      voiceMicBtn.classList.remove("active");
+      setVoiceRingState("idle");
+      if (event.error === "not-allowed" || event.error === "permission-denied") {
+        showVoiceStatus("Microphone access was blocked. You can continue typing below.", 5000);
+      } else if (event.error !== "no-speech") {
+        showVoiceStatus(`Voice input notice: ${event.error}. You can type your message.`, 4000);
+      } else {
+        hideVoiceStatus();
+      }
+    };
+
+    recognition.onend = () => {
+      isListening = false;
+      voiceMicBtn.classList.remove("active");
+      setVoiceRingState("idle");
+      hideVoiceStatus();
+      const captured = assistantTextInput.value.trim();
+      if (captured) {
+        handleAssistantSend(captured);
+      }
+    };
+  }
+
+  // Toggle Microphone
+  if (voiceMicBtn) {
+    voiceMicBtn.addEventListener("click", () => {
+      stopSpeechPlayback();
+
+      if (!recognition) {
+        showVoiceStatus("Speech recognition is not supported in this browser. Please type your message.", 4000);
+        assistantTextInput.focus();
+        return;
+      }
+
+      if (isListening) {
+        try { recognition.stop(); } catch (_) {}
+      } else {
+        assistantTextInput.value = "";
+        const lang = languageSelect ? languageSelect.value : "en";
+        recognition.lang = lang === "hi" ? "hi-IN" : lang === "te" ? "te-IN" : "en-IN";
+        try {
+          recognition.start();
+        } catch (e) {
+          console.warn("Could not start recognition:", e);
+        }
+      }
+    });
+  }
+
+  // Toggle Mute / Spoken Responses
+  if (voiceMuteBtn) {
+    voiceMuteBtn.addEventListener("click", () => {
+      isMuted = !isMuted;
+      if (isMuted) {
+        stopSpeechPlayback();
+        voiceMuteIcon.textContent = "🔇";
+        voiceMuteLabel.textContent = "Spoken: Muted";
+        voiceMuteBtn.style.opacity = "0.75";
+      } else {
+        voiceMuteIcon.textContent = "🔊";
+        voiceMuteLabel.textContent = "Spoken: On";
+        voiceMuteBtn.style.opacity = "1";
+      }
+    });
+  }
+
+  // Stop Speech Playback Button
+  if (voiceStopSpeechBtn) {
+    voiceStopSpeechBtn.addEventListener("click", () => {
+      stopSpeechPlayback();
+    });
+  }
+
+  // Voice Ring click triggers mic or stops speech
+  if (voiceRing) {
+    voiceRing.addEventListener("click", () => {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        stopSpeechPlayback();
+      } else if (voiceMicBtn) {
+        voiceMicBtn.click();
+      }
+    });
+  }
+
+  // Preset quick prompt chips
+  promptChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const promptText = chip.getAttribute("data-prompt");
+      if (promptText) {
+        assistantTextInput.value = promptText;
+        handleAssistantSend(promptText);
+      }
+    });
+  });
+
+  // Assistant Form Submit
+  if (assistantForm) {
+    assistantForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      handleAssistantSend();
+    });
+  }
+
+  // Clear Chat Button
+  if (clearChatBtn) {
+    clearChatBtn.addEventListener("click", () => {
+      stopSpeechPlayback();
+      assistantHistory = [];
+      thread.innerHTML = `
+        <div class="msg-bubble-row assistant-row">
+          <div class="bubble-avatar assistant-avatar" aria-hidden="true">🛡️</div>
+          <div class="msg-bubble assistant-bubble">
+            <p>Chat cleared! 😊 Feel free to speak or type a new message or link.</p>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  function setVoiceRingState(state) {
+    if (!voiceRing) return;
+    voiceRing.className = `voice-ring ${state}`;
+    if (audioWaveBars) {
+      if (state === "listening" || state === "speaking") {
+        audioWaveBars.classList.remove("hidden");
+      } else {
+        audioWaveBars.classList.add("hidden");
+      }
+    }
+  }
+
+  function showVoiceStatus(text, autoHideMs = null) {
+    if (!voiceStatusBanner || !voiceStatusText) return;
+    voiceStatusText.textContent = text;
+    voiceStatusBanner.classList.remove("hidden");
+    if (autoHideMs) {
+      setTimeout(() => hideVoiceStatus(), autoHideMs);
+    }
+  }
+
+  function hideVoiceStatus() {
+    if (voiceStatusBanner) {
+      voiceStatusBanner.classList.add("hidden");
+    }
+  }
+
+  function speakText(text, lang) {
+    if (isMuted || !window.speechSynthesis || !text) return;
+    stopSpeechPlayback();
+
+    const cleanText = text.replace(/[*_#`~\[\]<>]/g, "").trim();
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const targetLang = lang === "hi" ? "hi-IN" : lang === "te" ? "te-IN" : "en-IN";
+    utterance.lang = targetLang;
+    utterance.rate = 1.0;
+
+    // Pick suitable voice matching target language
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      const match = voices.find((v) =>
+        v.lang.toLowerCase().startsWith(lang === "hi" ? "hi" : lang === "te" ? "te" : "en")
+      );
+      if (match) utterance.voice = match;
+    }
+
+    utterance.onstart = () => {
+      setVoiceRingState("speaking");
+      if (voiceStopSpeechBtn) voiceStopSpeechBtn.classList.remove("hidden");
+    };
+
+    utterance.onend = () => {
+      setVoiceRingState("idle");
+      if (voiceStopSpeechBtn) voiceStopSpeechBtn.classList.add("hidden");
+    };
+
+    utterance.onerror = () => {
+      setVoiceRingState("idle");
+      if (voiceStopSpeechBtn) voiceStopSpeechBtn.classList.add("hidden");
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopSpeechPlayback() {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setVoiceRingState("idle");
+    if (voiceStopSpeechBtn) voiceStopSpeechBtn.classList.add("hidden");
+  }
+
+  function appendBubble(role, html) {
+    const row = document.createElement("div");
+    row.className = `msg-bubble-row ${role === "user" ? "user-row" : "assistant-row"}`;
+
+    const avatar = document.createElement("div");
+    avatar.className = `bubble-avatar ${role === "user" ? "user-avatar" : "assistant-avatar"}`;
+    avatar.textContent = role === "user" ? "You" : "🛡️";
+
+    const bubble = document.createElement("div");
+    bubble.className = `msg-bubble ${role === "user" ? "user-bubble" : "assistant-bubble"}`;
+    bubble.innerHTML = html;
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    thread.appendChild(row);
+    thread.scrollTop = thread.scrollHeight;
+    return bubble;
+  }
+
+  function renderAssistantBubbleContent(bubbleEl, data) {
+    let html = formatMarkdownToSafeHtml(data.reply);
+
+    // If URLs were automatically detected, render structured link report cards
+    if (data.urls_detected && data.urls_detected.length > 0) {
+      data.urls_detected.forEach((urlData) => {
+        const vc = ["critical", "high", "medium", "low"].includes(urlData.verdict)
+          ? urlData.verdict
+          : "medium";
+
+        const avail = urlData.availability || "unknown";
+        const availLabel = {
+          online: "🟢 Online",
+          unreachable: "🔴 Unreachable",
+          blocked_ssrf: "🛑 Blocked (SSRF Security)",
+          server_error: "⚠️ Server Error",
+          invalid_scheme: "⚠️ Invalid Scheme",
+          unknown: "⚪ Status Unknown",
+        }[avail] || avail.toUpperCase();
+
+        const flagsHtml = (urlData.red_flags || [])
+          .map((f) => `<li>${escHtml(f)}</li>`)
+          .join("");
+
+        const actionsHtml = (urlData.safe_actions || [])
+          .map((a) => `<li>${escHtml(a)}</li>`)
+          .join("");
+
+        const verdictLabel = urlData.verdict_label || urlData.verdict.toUpperCase();
+        const conf = urlData.confidence ? ` &bull; ${urlData.confidence.toUpperCase()} CONFIDENCE` : "";
+        const regDom = urlData.registered_domain && urlData.registered_domain !== urlData.domain
+          ? `<span style="font-size:0.75rem;color:var(--text-muted);margin-left:4px;">(Apex: ${escHtml(urlData.registered_domain)})</span>`
+          : "";
+
+        const tiBadge = urlData.threat_intelligence && urlData.threat_intelligence.checked
+          ? `<span style="font-size:0.72rem;background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:9999px;font-weight:600;">🛡️ Safe Browsing: ${escHtml(urlData.threat_intelligence.status.toUpperCase())}</span>`
+          : "";
+
+        html += `
+          <div class="link-card-inline">
+            <div class="link-card-header">
+              <span class="link-domain-badge">🔗 ${escHtml(urlData.domain || urlData.url)} ${regDom}</span>
+              <div class="link-pills-row">
+                ${tiBadge}
+                <span class="link-avail-pill ${avail}">${availLabel}</span>
+                <span class="link-score-badge ${vc}">Risk ${urlData.risk_score}/100 — ${escHtml(verdictLabel)}${conf}</span>
+              </div>
+            </div>
+            <div class="link-field-row"><strong>Category:</strong> ${escHtml(urlData.category)}</div>
+            ${urlData.redirect_destination && urlData.redirect_destination !== urlData.url ? `<div class="link-field-row"><strong>Redirect Destination:</strong> <code>${escHtml(urlData.redirect_destination)}</code></div>` : ""}
+            ${flagsHtml ? `<strong style="font-size:0.78rem;color:#b91c1c;">Detected Evidence / Red Flags:</strong><ul class="link-flags-list">${flagsHtml}</ul>` : ""}
+            ${actionsHtml ? `<strong style="font-size:0.78rem;color:#15803d;">Recommended Actions:</strong><ul class="link-actions-list">${actionsHtml}</ul>` : ""}
+            <div class="mcp-tool-pill">🔌 MCP Security Tool: <code>analyze_scam_url</code> (SSRF Guarded)</div>
+          </div>
+        `;
+      });
+    }
+
+    // Add Replay Voice Button
+    if (data.speech_text) {
+      const replayId = `replay-btn-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      html += `
+        <div>
+          <button type="button" class="play-bubble-btn" id="${replayId}">
+            <span>🔊</span> <span>Listen Aloud</span>
+          </button>
+        </div>
+      `;
+      bubbleEl.innerHTML = html;
+
+      const replayBtn = document.getElementById(replayId);
+      if (replayBtn) {
+        replayBtn.addEventListener("click", () => {
+          speakText(data.speech_text, data.language);
+        });
+      }
+    } else {
+      bubbleEl.innerHTML = html;
+    }
+
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  function formatMarkdownToSafeHtml(md) {
+    if (!md) return "";
+    let safe = escHtml(md);
+    // Convert bold **text** to <strong>
+    safe = safe.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    // Convert *text* to <em>
+    safe = safe.replace(/\*(.*?)\*/g, "<em>$1</em>");
+    // Convert `code` to <code>
+    safe = safe.replace(/`([^`]+)`/g, "<code>$1</code>");
+    // Convert newlines to paragraphs / breaks
+    const paragraphs = safe.split(/\n\n+/);
+    return paragraphs.map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+  }
+
+  async function handleAssistantSend(providedText = null) {
+    const raw = providedText !== null ? providedText : assistantTextInput.value;
+    const text = (raw || "").trim();
+    if (!text) {
+      assistantTextInput.focus();
+      return;
+    }
+
+    assistantTextInput.value = "";
+    stopSpeechPlayback();
+
+    // 1. Append User Bubble
+    appendBubble("user", escHtml(text));
+
+    // 2. Append Thinking Bubble
+    const thinkingBubble = appendBubble(
+      "assistant",
+      '<span style="font-style:italic;color:var(--text-muted);display:flex;align-items:center;gap:6px;"><span class="status-pulse-dot" style="animation-duration:0.8s;"></span> Thinking & checking links…</span>'
+    );
+    setVoiceRingState("thinking");
+
+    assistantSendBtn.disabled = true;
+    const currentLang = languageSelect ? languageSelect.value : "en";
+
+    try {
+      const resp = await fetch(`${API_BASE_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: text,
+          language: currentLang,
+          history: assistantHistory.slice(-4),
+          auto_analyze_links: true,
+        }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.detail || `Server error (HTTP ${resp.status})`);
+      }
+
+      const data = await resp.json();
+
+      // Render response
+      renderAssistantBubbleContent(thinkingBubble, data);
+
+      // Record in session conversation memory
+      assistantHistory.push({ role: "user", content: text });
+      assistantHistory.push({ role: "assistant", content: data.reply });
+
+      // Speak aloud
+      if (data.speech_text) {
+        speakText(data.speech_text, currentLang);
+      } else {
+        setVoiceRingState("idle");
+      }
+    } catch (err) {
+      thinkingBubble.innerHTML = `<span style="color:#b91c1c;">⚠️ Voice Assistant Error: ${escHtml(err.message)}</span>`;
+      setVoiceRingState("idle");
+    } finally {
+      assistantSendBtn.disabled = false;
+    }
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 });
