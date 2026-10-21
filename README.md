@@ -229,13 +229,14 @@ The frontend includes a **"Try the Alexa+ Scam Protection Demo"** section that s
 3. Scroll to the **"Try the Alexa+ Scam Protection Demo"** section at the bottom
 4. Click a preset chip (e.g. "🚨 Account Blocked") or type your own suspicious message
 5. Click **Ask Alexa+** (or press `Ctrl+Enter`)
-6. The demo calls `POST /analyze` on the real backend and displays results in a conversational card:
+6. The demo calls `POST /mcp-demo` on the backend bridge, which genuinely executes `session.call_tool("analyze_scam_message")` over Streamable HTTP against the MCP server on port 8001 via the official Python MCP SDK:
    - Risk score and verdict (CRITICAL / HIGH / MEDIUM / LOW)
    - Detected scam category
    - Red flags found
    - Recommended safe actions
    - Analysis mode (AI Enhanced or Rule-Based)
-7. The exact endpoint called is shown transparently at the bottom of each response
+   - Genuine MCP tool invocation confirmation
+7. The exact endpoint and MCP tool call status are shown transparently at the bottom of each response
 
 ---
 
@@ -282,9 +283,7 @@ python app/mcp_server.py
 
 After deployment, update the Alexa+ demo `API_BASE` constant in `frontend/index.html` to your public URL.
 
----
-
-## ## 📄 License & Hackathon Notice
+## 📄 License & Hackathon Notice
 
 Scam Shield is developed for the Amazon Developer Hackathon.
 
@@ -293,3 +292,4 @@ See the [LICENSE](LICENSE) file for details.
 
 Scam Shield is an independent project and is not affiliated with,
 endorsed by, or officially associated with Amazon.
+

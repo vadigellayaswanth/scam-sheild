@@ -474,7 +474,7 @@
             ${flags ? `<ul class="alexa-flags-list">${flags}</ul>` : ""}
             ${actions ? `<ul class="alexa-actions-list">${actions}</ul>` : ""}
             ${data.ai_explanation ? `<p style="font-size:0.82rem;color:#475569;margin-top:0.4rem;font-style:italic;">${escHtml(data.ai_explanation)}</p>` : ""}
-            <p class="alexa-endpoint-note">Real API call → <code>POST ${API_BASE}/analyze</code> (lang: ${escHtml(lang)})</p>
+            <p class="alexa-endpoint-note">🔌 Real MCP Tool Call → <code>analyze_scam_message</code> via Python MCP SDK (Streamable HTTP on port 8001)</p>
           </div>`;
       }
 
@@ -496,16 +496,19 @@
         appendBubble("user", escHtml(msg));
 
         // Alexa thinking
-        const thinkBubble = appendBubble("alexa", '<span class="alexa-thinking">Calling analyze_scam_message tool…</span>');
+        const thinkBubble = appendBubble("alexa", '<span class="alexa-thinking">Invoking MCP tool analyze_scam_message…</span>');
 
         try {
-          const resp = await fetch(`${API_BASE}/analyze`, {
+          const resp = await fetch(`${API_BASE}/mcp-demo`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: msg, language: lang }),
           });
 
-          if (!resp.ok) throw new Error(`API error ${resp.status}`);
+          if (!resp.ok) {
+            const errData = await resp.json().catch(() => ({}));
+            throw new Error(errData.detail || `Bridge HTTP error ${resp.status}`);
+          }
           const data = await resp.json();
 
           const vc = verdictClass(data.verdict);
@@ -519,8 +522,8 @@
           thinkBubble.innerHTML = `${intro}${buildResultCard(data)}`;
         } catch (err) {
           thinkBubble.innerHTML = `
-            <span style="color:#b91c1c;">⚠️ Could not reach the backend API.<br>
-            Make sure the FastAPI server is running on <code>${API_BASE}</code>.</span>`;
+            <span style="color:#b91c1c;">⚠️ MCP Tool Execution Error: ${escHtml(err.message)}<br>
+            Please verify that the MCP server is running on port 8001 and the FastAPI server is on port 8000.</span>`;
         } finally {
           askBtn.disabled = false;
         }
