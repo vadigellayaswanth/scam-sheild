@@ -17,10 +17,127 @@ from unittest.mock import patch, MagicMock
 
 from fastapi.testclient import TestClient
 
-from app.detector import analyze_message
+from app.detector import (
+    analyze_message,
+    _evaluate_links,
+    _extract_hostname,
+    _is_official_amazon_domain,
+)
 from app.translations import get_translation
 from app.ai_analyzer import analyze_with_ai, _validate_ai_payload
 from app.main import app
+
+
+class TestLinkEvaluation(unittest.TestCase):
+    """Unit tests for _extract_hostname, _is_official_amazon_domain, _evaluate_links."""
+
+    def test_extract_hostname_plain_https(self):
+        self.assertEqual(_extract_hostname("https://www.amazon.in/gp/orders"), "www.amazon.in")
+
+    def test_extract_hostname_no_scheme(self):
+        self.assertEqual(_extract_hostname("www.amazon.in/some/path"), "www.amazon.in")
+
+    def test_extract_hostname_with_port(self):
+        self.assertEqual(_extract_hostname("https://amazon.in:443/path?q=1"), "amazon.in")
+
+    def test_extract_hostname_trailing_punctuation(self):
+        self.assertEqual(_extract_hostname("https://fake-amazon.in."), "fake-amazon.in")
+
+    def test_extract_hostname_query_and_fragment(self):
+        self.assertEqual(
+            _extract_hostname("http://amz0n-kyc.in/update?ref=abc#section"),
+            "amz0n-kyc.in",
+        )
+
+    def test_official_exact_amazon_in(self):
+        self.assertTrue(_is_official_amazon_domain("amazon.in"))
+
+    def test_official_exact_amazon_com(self):
+        self.assertTrue(_is_official_amazon_domain("amazon.com"))
+
+    def test_official_www_subdomain(self):
+        self.assertTrue(_is_official_amazon_domain("www.amazon.in"))
+
+    def test_official_deep_subdomain(self):
+        self.assertTrue(_is_official_amazon_domain("sellercentral.amazon.in"))
+
+    def test_official_amzn_to(self):
+        self.assertTrue(_is_official_amazon_domain("amzn.to"))
+
+    def test_deceptive_amazon_in_as_subdomain(self):
+        self.assertFalse(_is_official_amazon_domain("amazon.in.fake-example.com"))
+
+    def test_deceptive_fake_amazon_in(self):
+        self.assertFalse(_is_official_amazon_domain("fake-amazon.in"))
+
+    def test_deceptive_typosquatted_digit(self):
+        self.assertFalse(_is_official_amazon_domain("amaz0n.in"))
+
+    def test_deceptive_amazon_kyc_domain(self):
+        self.assertFalse(_is_official_amazon_domain("amazon-kyc.in"))
+
+    def test_official_link_no_score_penalty(self):
+        """Official Amazon URL must not add any link-score penalty."""
+        score, flags = _evaluate_links(
+            "Click here: https://www.amazon.in/gp/your-account/order-history"
+        )
+        self.assertEqual(score, 0)
+        self.assertEqual(flags, [])
+
+    def test_official_link_with_port_no_penalty(self):
+        score, flags = _evaluate_links("Visit https://amazon.in:443/orders")
+        self.assertEqual(score, 0)
+
+    def test_deceptive_domain_as_subdomain_flagged(self):
+        score, flags = _evaluate_links(
+            "Update your account at http://amazon.in.fake-example.com/kyc"
+        )
+        self.assertGreater(score, 0)
+        self.assertTrue(any("external or unverified" in f for f in flags))
+
+    def test_shortener_url_flagged(self):
+        score, flags = _evaluate_links("Click here: https://bit.ly/amz-kyc-verify")
+        self.assertGreaterEqual(score, 35)
+        self.assertTrue(any("shortened" in f for f in flags))
+
+    def test_non_amazon_external_link_small_penalty(self):
+        score, flags = _evaluate_links("Visit https://example-partner.com/offer")
+        self.assertEqual(score, 15)
+        self.assertTrue(any("external or unverified" in f for f in flags))
+
+    def test_no_urls_no_score(self):
+        score, flags = _evaluate_links("Your package has been delivered.")
+        self.assertEqual(score, 0)
+        self.assertEqual(flags, [])
+
+    def test_prize_otp_with_official_domain_still_critical(self):
+        """Official amazon.in in URL must not make message safe when OTP is requested."""
+        msg = (
+            "Congratulations! You have won ₹5,00,000 in an Amazon lucky draw. "
+            "Your prize will expire today. Click www.amazon.in and share your "
+            "OTP to claim your reward immediately!"
+        )
+        res = analyze_message(msg, language="en")
+        self.assertGreaterEqual(res["risk_score"], 75)
+        self.assertEqual(res["verdict"], "critical")
+        self.assertTrue(
+            any("OTP" in flag or "security credentials" in flag for flag in res["red_flags"]),
+            f"Expected OTP flag in red_flags, got: {res['red_flags']}",
+        )
+        self.assertFalse(
+            any("external or unverified" in flag for flag in res["red_flags"]),
+            "Official amazon.in must not be flagged as external",
+        )
+
+    def test_prize_otp_safe_actions_warn_about_otp(self):
+        msg = (
+            "Congratulations! You have won ₹5,00,000 in an Amazon lucky draw. "
+            "Your prize will expire today. Click www.amazon.in and share your "
+            "OTP to claim your reward immediately!"
+        )
+        res = analyze_message(msg, language="en")
+        safe_text = " ".join(res["safe_actions"]).lower()
+        self.assertIn("otp", safe_text)
 
 
 class TestRuleBasedDetector(unittest.TestCase):

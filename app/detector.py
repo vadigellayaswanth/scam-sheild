@@ -15,6 +15,7 @@ IMPORTANT LIMITATIONS & DISCLAIMER:
 """
 
 import re
+from urllib.parse import urlparse
 from typing import Dict, List, Tuple, Any
 
 SUPPORTED_LANGUAGES = {"en", "hi", "te"}
@@ -26,13 +27,13 @@ URL_PATTERN = re.compile(
 SHORTENER_PATTERN = re.compile(
     r"(?i)\b(?:https?://|www\.)?(?:bit\.ly|tinyurl\.com|t\.co|is\.gd|buff\.ly|ow\.ly|cutt\.ly|tiny\.cc|rb\.gy|wa\.me|t\.me)/[a-z0-9_-]+"
 )
+# Exact registered domains that are genuinely official Amazon properties.
+# Subdomains of these are also accepted (e.g. www.amazon.in, sellercentral.amazon.in).
 OFFICIAL_AMAZON_DOMAINS = [
     "amazon.in",
     "amazon.com",
     "amzn.to",
     "amzn.in",
-    "aws.amazon.com",
-    "sellercentral.amazon.in",
 ]
 
 # Common patterns across categories
@@ -316,27 +317,82 @@ TRANSLATED_SAFE_ACTIONS: Dict[str, Dict[str, List[str]]] = {
 }
 
 
+def _extract_hostname(raw_url: str) -> str:
+    """Return the bare hostname (lower-cased, no port) from a raw URL string.
+
+    Handles the common case where the URL regex captures a leading ``www.``
+    prefix without a scheme.  Trailing punctuation that slipped past the URL
+    regex (e.g. a closing parenthesis or period) is stripped first.
+    """
+    raw_url = raw_url.strip().rstrip(".,;:)>]'\"").rstrip()
+    # Ensure there is a scheme so urlparse works correctly.
+    if not re.match(r"(?i)^https?://", raw_url):
+        raw_url = "http://" + raw_url
+    try:
+        hostname = urlparse(raw_url).hostname or ""
+    except Exception:
+        hostname = ""
+    return hostname.lower()
+
+
+def _is_official_amazon_domain(hostname: str) -> bool:
+    """Return True only when *hostname* is an exact official Amazon domain or a
+    legitimate subdomain of one.
+
+    Examples
+    --------
+    >>> _is_official_amazon_domain("amazon.in")           # True
+    >>> _is_official_amazon_domain("www.amazon.in")       # True  (subdomain)
+    >>> _is_official_amazon_domain("amazon.in.fake.com")  # False (not a subdomain)
+    >>> _is_official_amazon_domain("fake-amazon.in")      # False (different domain)
+    """
+    for official in OFFICIAL_AMAZON_DOMAINS:
+        if hostname == official or hostname.endswith("." + official):
+            return True
+    return False
+
+
 def _evaluate_links(text: str) -> Tuple[int, List[str]]:
-    """Evaluates links in message for shortened URLs or non-Amazon domains."""
+    """Evaluates links present in *text* for URL shorteners and non-official domains.
+
+    Scoring
+    -------
+    - URL shortener detected                 → +35 points
+    - External / unverified link (non-Amazon,
+      not already caught as a shortener)     → +15 points  (neutral signal)
+
+    Note: an official Amazon domain in the URL does *not* clear suspicion from
+    other triggered rules (e.g. OTP requests or prize draw claims).
+    """
     score = 0
     flags = []
+    shortener_found = bool(SHORTENER_PATTERN.search(text))
 
-    # Check for URL shorteners
-    if SHORTENER_PATTERN.search(text):
+    if shortener_found:
         score += 35
         flags.append("Contains shortened or masking URL (often used to obscure malicious links)")
 
-    # Check all extracted URLs against legitimate domains
+    # Examine every URL for hostname legitimacy.
     urls = URL_PATTERN.findall(text)
-    for url in urls:
-        clean_url = url.lower()
-        is_official = any(
-            (domain in clean_url) for domain in OFFICIAL_AMAZON_DOMAINS
-        )
-        if not is_official and not any("shortened" in f.lower() for f in flags):
-            score += 35
-            flags.append(f"Contains non-official or suspicious external link: {url}")
-            break
+    external_urls_flagged = False
+    for raw_url in urls:
+        # Skip shortener URLs — already flagged above.
+        if SHORTENER_PATTERN.match(raw_url.strip()):
+            continue
+        hostname = _extract_hostname(raw_url)
+        if not hostname:
+            continue
+        if _is_official_amazon_domain(hostname):
+            # Legitimate Amazon URL — no link-score penalty.  Other rules
+            # (OTP theft, prize draw, urgency) still apply independently.
+            continue
+        # Non-Amazon, non-shortener external link — flag once.
+        if not external_urls_flagged and not shortener_found:
+            score += 15
+            flags.append(
+                f"Contains an external or unverified link (not an official Amazon domain): {raw_url}"
+            )
+            external_urls_flagged = True
 
     return score, flags
 
